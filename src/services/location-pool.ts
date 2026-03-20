@@ -84,8 +84,12 @@ async function refillPool(): Promise<void> {
 }
 
 export function startPool(): void {
-  console.log("[Pool] Starting location pool...");
-  refillPool();
+  console.log("[Pool] Starting location pool (delayed 10s)...");
+
+  // Delay initial fill to avoid flooding API during startup
+  setTimeout(() => {
+    refillPool();
+  }, 10_000);
 
   setInterval(() => {
     if (pool.length < POOL_MIN) {

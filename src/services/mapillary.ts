@@ -41,6 +41,7 @@ export async function fetchNearbyImage(
   try {
     response = await fetch(url.toString(), {
       signal: AbortSignal.timeout(timeoutMs),
+      headers: { "User-Agent": "GeoBot-Discord/1.0" },
     });
   } catch (error) {
     console.error("Mapillary API request failed:", error);
