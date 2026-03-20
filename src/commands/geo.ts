@@ -6,7 +6,7 @@ import {
 } from "discord.js";
 import { config } from "../config";
 import { generateRandomLocation } from "../services/location";
-import { fetchNearbyImage } from "../services/mapillary";
+import { fetchNearbyImage, fetchRandomImageParallel } from "../services/mapillary";
 import { reverseGeocode } from "../services/geocoding";
 import { createSession } from "../game/session";
 import {
@@ -54,20 +54,19 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     countryFlag = pooled.countryFlag;
     countryCode = pooled.countryCode;
   } else {
+    // Fallback: try parallel batches of random locations
     try {
-      for (let attempt = 0; attempt < config.game.maxRetries; attempt++) {
-        const location = generateRandomLocation();
-
-        const result = await fetchNearbyImage(location.lat, location.lng);
+      for (let batch = 0; batch < config.game.maxRetries; batch++) {
+        const result = await fetchRandomImageParallel();
         if (!result) continue;
 
-        const geocodedCountry = await reverseGeocode(result.lat, result.lng);
+        const geocodedCountry = await reverseGeocode(result.image.lat, result.image.lng);
         if (!geocodedCountry) continue;
 
         const matched = getCountryByName(geocodedCountry);
         if (!matched) continue;
 
-        image = result;
+        image = result.image;
         country = matched.name;
         countryFlag = matched.flag;
         countryCode = matched.code;

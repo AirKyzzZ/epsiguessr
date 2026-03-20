@@ -185,19 +185,8 @@ client.on(Events.MessageCreate, async (message) => {
   }
 });
 
-client.once(Events.ClientReady, async (readyClient) => {
+client.once(Events.ClientReady, (readyClient) => {
   console.log(`GeoBot is online as ${readyClient.user.tag}`);
-
-  // Diagnostic: test if Mapillary API is reachable from this process
-  try {
-    const testUrl = `https://graph.mapillary.com/images?access_token=${config.mapillaryToken}&fields=id,geometry&bbox=2.30,48.85,2.398,48.948&limit=1`;
-    const start = Date.now();
-    const res = await fetch(testUrl, { signal: AbortSignal.timeout(10000) });
-    const data = await res.json() as { data?: unknown[] };
-    console.log(`[Diag] Mapillary API: ${res.status} in ${Date.now() - start}ms, found: ${data.data?.length ?? 0}`);
-  } catch (e) {
-    console.error(`[Diag] Mapillary API FAILED:`, e);
-  }
 });
 
 async function main(): Promise<void> {
