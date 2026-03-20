@@ -23,10 +23,13 @@ type MapillaryApiResponse = {
 // This is ~100x more area than the previous 0.005° radius.
 const SEARCH_RADIUS = 0.049;
 
+// Mapillary API responds in 1-2s for working regions but hangs
+// indefinitely for others. 3s timeout catches all valid responses
+// while failing fast on dead regions.
 export async function fetchNearbyImage(
   lat: number,
   lng: number,
-  timeoutMs = 5000
+  timeoutMs = 3000
 ): Promise<MapillaryImage | null> {
   const r = SEARCH_RADIUS;
   const bbox = `${lng - r},${lat - r},${lng + r},${lat + r}`;

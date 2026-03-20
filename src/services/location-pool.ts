@@ -14,7 +14,7 @@ type ValidatedLocation = {
 
 const POOL_TARGET = 20;
 const POOL_MIN = 5;
-const MAX_FETCH_ATTEMPTS = 15;
+const MAX_FETCH_ATTEMPTS = 30;
 const REFILL_INTERVAL_MS = 30_000; // check every 30s
 
 const pool: ValidatedLocation[] = [];
@@ -33,7 +33,7 @@ export function takeLocation(): ValidatedLocation | null {
 async function validateOneLocation(): Promise<ValidatedLocation | null> {
   const location = generateRandomLocation();
 
-  const result = await fetchNearbyImage(location.lat, location.lng, 10000);
+  const result = await fetchNearbyImage(location.lat, location.lng, 5000);
   if (!result) return null;
 
   const geocodedCountry = await reverseGeocode(result.lat, result.lng);
@@ -72,8 +72,8 @@ async function refillPool(): Promise<void> {
         pool.push(loc);
         added++;
       }
-      // Pace API calls to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Brief pause between attempts
+      await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (error) {
       console.error("[Pool] Error validating location:", error);
     }
