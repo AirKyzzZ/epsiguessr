@@ -73,7 +73,7 @@ async function refillPool(): Promise<void> {
         added++;
       }
       // Pace API calls to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     } catch (error) {
       console.error("[Pool] Error validating location:", error);
     }

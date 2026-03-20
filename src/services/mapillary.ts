@@ -22,18 +22,13 @@ type MapillaryApiResponse = {
 // 0.049° per side → 0.098° × 0.098° = 0.0096 sq deg (under limit).
 const MAX_RADIUS = 0.049;
 
-// Search offsets: center, then cardinal directions at increasing distances.
-// Each search covers a 0.1° × 0.1° area (~11km × 11km).
+// Search offsets: center, then nearby shifts to cover more area.
+// Each search covers a ~0.098° × 0.098° area (~10km × 10km).
 const SEARCH_OFFSETS = [
   { dlat: 0, dlng: 0 },        // center
   { dlat: 0.1, dlng: 0 },      // north
-  { dlat: -0.1, dlng: 0 },     // south
   { dlat: 0, dlng: 0.1 },      // east
-  { dlat: 0, dlng: -0.1 },     // west
-  { dlat: 0.2, dlng: 0.2 },    // NE far
-  { dlat: -0.2, dlng: -0.2 },  // SW far
-  { dlat: 0.3, dlng: 0 },      // north far
-  { dlat: 0, dlng: 0.3 },      // east far
+  { dlat: -0.1, dlng: -0.1 },  // SW
 ];
 
 export async function fetchNearbyImage(
@@ -67,7 +62,7 @@ async function searchWithRadius(
   let response: Response;
   try {
     response = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(15000),
     });
   } catch (error) {
     console.error(`Mapillary API request failed (radius ${r}):`, error);
