@@ -1,0 +1,27 @@
+{
+  "name": "geoguessr-npmz-discord-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for GeoGuessr-style country guessing game",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc"
+  },
+  "keywords": ["discord", "geoguessr", "bot"],
+  "author": "Maxime Mansiet",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "discord.js": "^14.25.1",
+    "dotenv": "^17.3.1",
+    "fuse.js": "^7.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
