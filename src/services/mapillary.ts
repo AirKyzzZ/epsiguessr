@@ -20,8 +20,8 @@ type MapillaryApiResponse = {
 };
 
 // Mapillary limits bbox area to strictly < 0.01 sq degrees.
-// 0.025° per side → 0.05° × 0.05° = 0.0025 sq deg (well under limit).
-const SEARCH_RADIUS = 0.025;
+// 0.049° per side → 0.098° × 0.098° = 0.0096 sq deg (under limit).
+const SEARCH_RADIUS = 0.049;
 
 // Mapillary API hangs indefinitely for many coordinate regions.
 // Working responses arrive in 1-3s, so 4s is a safe cutoff.

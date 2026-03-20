@@ -55,6 +55,13 @@ async function refillPool(): Promise<void> {
       locations.map((loc) => fetchNearbyImage(loc.lat, loc.lng, 5000))
     );
 
+    const responded = results.filter(
+      (r) => r.status === "fulfilled" && r.value
+    ).length;
+    if (responded > 0) {
+      console.log(`[Pool] Round ${rounds}: ${responded}/${PARALLEL_FETCH} Mapillary hits`);
+    }
+
     // Process successful results (geocode sequentially due to Nominatim rate limit)
     for (const result of results) {
       if (result.status !== "fulfilled" || !result.value) continue;
