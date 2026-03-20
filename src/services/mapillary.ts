@@ -40,7 +40,10 @@ export async function fetchNearbyImage(
   try {
     response = await fetch(rawUrl, {
       signal: AbortSignal.timeout(timeoutMs),
-      headers: { "User-Agent": "GeoBot-Discord/1.0" },
+      headers: {
+        "User-Agent": "GeoBot-Discord/1.0",
+        "Connection": "close",
+      },
     });
   } catch (error) {
     console.error(`Mapillary API timeout for bbox=${bbox}`);
