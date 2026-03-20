@@ -1,0 +1,17 @@
+[Unit]
+Description=EPSIGuessr Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+User=samsepiol
+WorkingDirectory=/home/samsepiol/geoguessr-npmz-discord-bot
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
