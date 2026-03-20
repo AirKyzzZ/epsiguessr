@@ -18,11 +18,26 @@ type MapillaryApiResponse = {
   }>;
 };
 
+// Progressive search radii in degrees
+// 0.1° ≈ 11km, 0.5° ≈ 55km, 1.0° ≈ 111km, 2.0° ≈ 222km
+const SEARCH_RADII = [0.1, 0.5, 1.0, 2.0];
+
 export async function fetchNearbyImage(
   lat: number,
   lng: number
 ): Promise<MapillaryImage | null> {
-  const r = config.game.mapillarySearchRadius;
+  for (const r of SEARCH_RADII) {
+    const result = await searchWithRadius(lat, lng, r);
+    if (result) return result;
+  }
+  return null;
+}
+
+async function searchWithRadius(
+  lat: number,
+  lng: number,
+  r: number
+): Promise<MapillaryImage | null> {
   const bbox = `${lng - r},${lat - r},${lng + r},${lat + r}`;
 
   const url = new URL("https://graph.mapillary.com/images");
@@ -37,12 +52,12 @@ export async function fetchNearbyImage(
       signal: AbortSignal.timeout(8000),
     });
   } catch (error) {
-    console.error("Mapillary API request failed:", error);
+    console.error(`Mapillary API request failed (radius ${r}):`, error);
     return null;
   }
 
   if (!response.ok) {
-    console.error(`Mapillary API error: ${response.status} ${response.statusText}`);
+    console.error(`Mapillary API error (radius ${r}): ${response.status} ${response.statusText}`);
     return null;
   }
 

@@ -17,7 +17,6 @@ export const config = {
   game: {
     maxTries: 3,
     roundTimeoutMs: 2 * 60 * 1000, // 2 minutes
-    mapillarySearchRadius: 0.005, // half of 0.01 degree bbox limit
-    maxRetries: 5,
+    maxRetries: 10,
   },
 } as const;
