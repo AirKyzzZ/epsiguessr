@@ -61,6 +61,15 @@ async function refillPool(): Promise<void> {
 
   console.log(`[Pool] Refilling... (${pool.length}/${POOL_TARGET})`);
 
+  // Diagnostic: test a known-good Paris bbox before starting
+  try {
+    const testStart = Date.now();
+    const res = await fetch(`https://graph.mapillary.com/images?access_token=${process.env.MAPILLARY_TOKEN}&fields=id,geometry&bbox=2.30,48.85,2.398,48.948&limit=1`, { signal: AbortSignal.timeout(5000) });
+    console.log(`[Pool] Diag fetch: ${res.status} in ${Date.now() - testStart}ms`);
+  } catch (e) {
+    console.error(`[Pool] Diag fetch FAILED in pool context:`, (e as Error).message);
+  }
+
   let attempts = 0;
   let added = 0;
 
