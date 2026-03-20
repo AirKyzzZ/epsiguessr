@@ -31,20 +31,16 @@ export async function fetchNearbyImage(
   const r = SEARCH_RADIUS;
   const bbox = `${lng - r},${lat - r},${lng + r},${lat + r}`;
 
-  const url = new URL("https://graph.mapillary.com/images");
-  url.searchParams.set("access_token", config.mapillaryToken);
-  url.searchParams.set("fields", "id,thumb_2048_url,geometry");
-  url.searchParams.set("bbox", bbox);
-  url.searchParams.set("limit", "10");
+  const rawUrl = `https://graph.mapillary.com/images?access_token=${config.mapillaryToken}&fields=id,thumb_2048_url,geometry&bbox=${bbox}&limit=10`;
 
   let response: Response;
   try {
-    response = await fetch(url.toString(), {
+    response = await fetch(rawUrl, {
       signal: AbortSignal.timeout(timeoutMs),
       headers: { "User-Agent": "GeoBot-Discord/1.0" },
     });
   } catch (error) {
-    console.error("Mapillary API request failed:", error);
+    console.error(`Mapillary API timeout for bbox=${bbox}`);
     return null;
   }
 
