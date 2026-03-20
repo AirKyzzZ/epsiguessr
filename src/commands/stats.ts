@@ -1,9 +1,11 @@
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,
+  MessageFlags,
   SlashCommandBuilder,
 } from "discord.js";
 import { getPlayerStats } from "../services/leaderboard";
+import { getLang } from "../i18n";
 
 export const data = new SlashCommandBuilder()
   .setName("stats")
@@ -16,6 +18,7 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  const t = getLang(interaction.guildId);
   const targetUser = interaction.options.getUser("player") ?? interaction.user;
 
   const stats = getPlayerStats(targetUser.id);
@@ -23,9 +26,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   if (!stats) {
     await interaction.reply({
       content: targetUser.id === interaction.user.id
-        ? "You haven't played any games yet! Start one with `/geo`."
-        : `${targetUser.username} hasn't played any games yet.`,
-      ephemeral: true,
+        ? t.stats.noGames
+        : t.stats.noGamesOther(targetUser.username),
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -36,13 +39,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const embed = new EmbedBuilder()
     .setColor(0x00b4d8)
-    .setTitle(`📊 Stats for ${stats.username}`)
+    .setTitle(t.stats.title(stats.username))
     .addFields(
       { name: "🏆 Wins", value: `${stats.wins}`, inline: true },
-      { name: "🎮 Games Played", value: `${stats.games_played}`, inline: true },
+      { name: "🎮 Games", value: `${stats.games_played}`, inline: true },
       { name: "📈 Win Rate", value: `${winRate}%`, inline: true },
-      { name: "🔥 Current Streak", value: `${stats.current_streak}`, inline: true },
-      { name: "⭐ Best Streak", value: `${stats.best_streak}`, inline: true }
+      { name: "🔥 Streak", value: `${stats.current_streak}`, inline: true },
+      { name: "⭐ Best", value: `${stats.best_streak}`, inline: true }
     );
 
   await interaction.reply({ embeds: [embed] });

@@ -1,15 +1,24 @@
 import {
   ChatInputCommandInteraction,
   EmbedBuilder,
+  MessageFlags,
   SlashCommandBuilder,
-  TextChannel,
 } from "discord.js";
 import { config } from "../config";
 import { generateRandomLocation } from "../services/location";
 import { fetchNearbyImage } from "../services/mapillary";
 import { reverseGeocode } from "../services/geocoding";
 import { createSession } from "../game/session";
-import { hasActiveSession, setSession, endSession } from "../game/manager";
+import {
+  hasActiveSession,
+  setSession,
+  endSession,
+  markPending,
+  clearPending,
+} from "../game/manager";
+import { getCountryByName } from "../game/matcher";
+import { getLang } from "../i18n";
+import { recordLoss } from "../services/leaderboard";
 
 export const data = new SlashCommandBuilder()
   .setName("geo")
@@ -17,83 +26,100 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const channelId = interaction.channelId;
+  const t = getLang(interaction.guildId);
 
   if (hasActiveSession(channelId)) {
     await interaction.reply({
-      content: "There's already an active round in this channel! Guess the country or use `/skip` to skip.",
-      ephemeral: true,
+      content: t.geo.alreadyActive,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
+  // Mark channel as pending to prevent race condition
+  markPending(channelId);
   await interaction.deferReply();
 
-  // Try to find a valid image
   let image = null;
   let country = "";
   let countryFlag = "";
+  let countryCode = "";
 
-  for (let attempt = 0; attempt < config.game.maxRetries; attempt++) {
-    const location = generateRandomLocation();
+  try {
+    for (let attempt = 0; attempt < config.game.maxRetries; attempt++) {
+      const location = generateRandomLocation();
 
-    const result = await fetchNearbyImage(location.lat, location.lng);
-    if (!result) continue;
+      const result = await fetchNearbyImage(location.lat, location.lng);
+      if (!result) continue;
 
-    // Reverse geocode to confirm the country
-    const geocodedCountry = await reverseGeocode(result.lat, result.lng);
-    if (!geocodedCountry) continue;
+      const geocodedCountry = await reverseGeocode(result.lat, result.lng);
+      if (!geocodedCountry) continue;
 
-    image = result;
-    country = geocodedCountry;
-    countryFlag = location.country.flag;
-    break;
+      const matched = getCountryByName(geocodedCountry);
+      if (!matched) continue; // skip unknown countries to avoid wrong flag/code
+
+      image = result;
+      country = matched.name;
+      countryFlag = matched.flag;
+      countryCode = matched.code;
+      break;
+    }
+  } catch (error) {
+    console.error("Error during image search:", error);
   }
 
   if (!image) {
-    await interaction.editReply(
-      "Couldn't find a street view image this time. Try again!"
-    );
+    clearPending(channelId);
+    await interaction.editReply(t.geo.notFound);
     return;
   }
 
   const session = createSession(
     country,
     countryFlag,
+    countryCode,
     image.thumbUrl,
     image.lat,
     image.lng,
     interaction.user.id
   );
 
-  // Auto-expire after timeout
-  session.timeout = setTimeout(async () => {
-    const ended = endSession(channelId);
-    if (!ended) return;
-
-    const channel = interaction.channel as TextChannel;
-    const timeoutEmbed = new EmbedBuilder()
-      .setColor(0xff6b6b)
-      .setTitle("Time's up!")
-      .setDescription(
-        `Nobody guessed it! The answer was **${ended.answerFlag} ${ended.answer}**`
-      )
-      .setFooter({
-        text: `📍 View on map: https://www.openstreetmap.org/#map=10/${ended.lat}/${ended.lng}`,
-      });
-
-    await channel.send({ embeds: [timeoutEmbed] });
-  }, config.game.roundTimeoutMs);
-
+  // Store session BEFORE setting timeout
   setSession(channelId, session);
+
+  session.timeout = setTimeout(async () => {
+    try {
+      const ended = endSession(channelId);
+      if (!ended) return;
+
+      // Record losses for all participants
+      for (const [playerId, entry] of ended.playerTries) {
+        recordLoss(playerId, entry.username);
+      }
+
+      const channel = interaction.channel;
+      if (!channel || !("send" in channel)) return;
+
+      const timeoutEmbed = new EmbedBuilder()
+        .setColor(0xff6b6b)
+        .setTitle(t.geo.timesUp)
+        .setDescription(t.geo.timesUpDesc(ended.answerFlag, ended.answer))
+        .setFooter({
+          text: `📍 https://www.openstreetmap.org/#map=10/${ended.lat}/${ended.lng}`,
+        });
+
+      await channel.send({ embeds: [timeoutEmbed] });
+    } catch (error) {
+      console.error("Error in timeout handler:", error);
+    }
+  }, config.game.roundTimeoutMs);
 
   const embed = new EmbedBuilder()
     .setColor(0x00b4d8)
-    .setTitle("🌍 GeoGuessr — Guess the country!")
-    .setDescription(
-      `Type your guess in the chat.\nYou have **${config.game.maxTries} tries** per person.\n⏱️ Round expires in 2 minutes.`
-    )
+    .setTitle(t.geo.title)
+    .setDescription(t.geo.description(config.game.maxTries))
     .setImage(image.thumbUrl)
-    .setFooter({ text: `Round started by ${interaction.user.username}` });
+    .setFooter({ text: t.geo.startedBy(interaction.user.username) });
 
   await interaction.editReply({ embeds: [embed] });
 }

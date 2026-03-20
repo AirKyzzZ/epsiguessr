@@ -27,18 +27,29 @@ export async function reverseGeocode(
   url.searchParams.set("lon", lng.toString());
   url.searchParams.set("format", "json");
   url.searchParams.set("zoom", "3"); // country level
+  url.searchParams.set("accept-language", "en"); // always English
 
-  const response = await fetch(url.toString(), {
-    headers: {
-      "User-Agent": "GeoBot-Discord/1.0",
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      headers: { "User-Agent": "GeoBot-Discord/1.0" },
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch (error) {
+    console.error("Nominatim request failed:", error);
+    return null;
+  }
 
   if (!response.ok) {
     console.error(`Nominatim error: ${response.status} ${response.statusText}`);
     return null;
   }
 
-  const data = (await response.json()) as NominatimResponse;
-  return data.address?.country ?? null;
+  try {
+    const data = (await response.json()) as NominatimResponse;
+    return data.address?.country ?? null;
+  } catch (error) {
+    console.error("Nominatim JSON parse error:", error);
+    return null;
+  }
 }

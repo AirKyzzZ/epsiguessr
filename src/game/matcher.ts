@@ -13,7 +13,7 @@ for (const country of countries) {
 
 const fuse = new Fuse(allEntries, {
   keys: ["name"],
-  threshold: 0.3,
+  threshold: 0.4,
   includeScore: true,
 });
 
@@ -35,7 +35,10 @@ export function matchCountry(guess: string, answer: string): boolean {
 
   // Check if guess matches any alias/code of the answer country
   const answerCountry = countries.find(
-    (c) => normalize(c.name) === normalizedAnswer
+    (c) =>
+      normalize(c.name) === normalizedAnswer ||
+      normalize(c.code) === normalizedAnswer ||
+      c.aliases.some((a) => normalize(a) === normalizedAnswer)
   );
 
   if (answerCountry) {
@@ -47,7 +50,7 @@ export function matchCountry(guess: string, answer: string): boolean {
 
   // Fuzzy match — only accept if the best match points to the same country as the answer
   const results = fuse.search(normalizedGuess);
-  if (results.length > 0 && results[0].score !== undefined && results[0].score < 0.2) {
+  if (results.length > 0 && results[0].score !== undefined && results[0].score < 0.35) {
     const matchedCountry = results[0].item.country;
     if (answerCountry && matchedCountry.code === answerCountry.code) {
       return true;

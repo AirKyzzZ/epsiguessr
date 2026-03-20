@@ -31,26 +31,42 @@ export async function fetchNearbyImage(
   url.searchParams.set("bbox", bbox);
   url.searchParams.set("limit", "10");
 
-  const response = await fetch(url.toString());
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (error) {
+    console.error("Mapillary API request failed:", error);
+    return null;
+  }
 
   if (!response.ok) {
     console.error(`Mapillary API error: ${response.status} ${response.statusText}`);
     return null;
   }
 
-  const data = (await response.json()) as MapillaryApiResponse;
+  try {
+    const data = (await response.json()) as MapillaryApiResponse;
 
-  if (!data.data || data.data.length === 0) {
+    if (!data.data || data.data.length === 0) {
+      return null;
+    }
+
+    const image = data.data[Math.floor(Math.random() * data.data.length)];
+
+    if (!image.thumb_2048_url || !image.geometry?.coordinates) {
+      return null;
+    }
+
+    return {
+      id: image.id,
+      thumbUrl: image.thumb_2048_url,
+      lat: image.geometry.coordinates[1],
+      lng: image.geometry.coordinates[0],
+    };
+  } catch (error) {
+    console.error("Mapillary response parse error:", error);
     return null;
   }
-
-  // Pick a random image from results for variety
-  const image = data.data[Math.floor(Math.random() * data.data.length)];
-
-  return {
-    id: image.id,
-    thumbUrl: image.thumb_2048_url,
-    lat: image.geometry.coordinates[1],
-    lng: image.geometry.coordinates[0],
-  };
 }

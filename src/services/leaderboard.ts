@@ -1,7 +1,8 @@
 import Database from "better-sqlite3";
 import path from "path";
 
-const db = new Database(path.join(process.cwd(), "geoguessr.db"));
+const dbPath = path.join(path.dirname(__dirname), "..", "geoguessr.db");
+const db = new Database(dbPath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS players (
@@ -11,6 +12,13 @@ db.exec(`
     games_played INTEGER NOT NULL DEFAULT 0,
     current_streak INTEGER NOT NULL DEFAULT 0,
     best_streak INTEGER NOT NULL DEFAULT 0
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS guild_settings (
+    guild_id TEXT PRIMARY KEY,
+    lang TEXT NOT NULL DEFAULT 'en'
   )
 `);
 
@@ -49,6 +57,15 @@ const playerStatsStmt = db.prepare(`
   WHERE discord_id = ?
 `);
 
+const getGuildLangStmt = db.prepare(`
+  SELECT lang FROM guild_settings WHERE guild_id = ?
+`);
+
+const setGuildLangStmt = db.prepare(`
+  INSERT INTO guild_settings (guild_id, lang) VALUES (?, ?)
+  ON CONFLICT(guild_id) DO UPDATE SET lang = excluded.lang
+`);
+
 export type PlayerStats = {
   discord_id: string;
   username: string;
@@ -78,4 +95,13 @@ export function getTopPlayers(): PlayerStats[] {
 
 export function getPlayerStats(discordId: string): PlayerStats | undefined {
   return playerStatsStmt.get(discordId) as PlayerStats | undefined;
+}
+
+export function getGuildLang(guildId: string): string | undefined {
+  const row = getGuildLangStmt.get(guildId) as { lang: string } | undefined;
+  return row?.lang;
+}
+
+export function setGuildLangDb(guildId: string, lang: string): void {
+  setGuildLangStmt.run(guildId, lang);
 }

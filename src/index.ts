@@ -3,6 +3,7 @@ import {
   Collection,
   Events,
   GatewayIntentBits,
+  MessageFlags,
   REST,
   Routes,
   type ChatInputCommandInteraction,
@@ -11,15 +12,19 @@ import {
 } from "discord.js";
 import { config } from "./config";
 import { getSession, endSession } from "./game/manager";
-import { getPlayerTriesLeft, recordTry } from "./game/session";
+import { getPlayerTriesLeft, recordTry, allPlayersExhausted } from "./game/session";
 import { matchCountry } from "./game/matcher";
 import { recordWin, recordLoss } from "./services/leaderboard";
+import { getLang } from "./i18n";
 
 // Import commands
 import * as geoCommand from "./commands/geo";
 import * as leaderboardCommand from "./commands/leaderboard";
 import * as statsCommand from "./commands/stats";
 import * as skipCommand from "./commands/skip";
+import * as hintCommand from "./commands/hint";
+import * as helpCommand from "./commands/help";
+import * as langCommand from "./commands/lang";
 
 type Command = {
   data: SlashCommandBuilder;
@@ -31,6 +36,9 @@ commands.set(geoCommand.data.name, geoCommand as Command);
 commands.set(leaderboardCommand.data.name, leaderboardCommand as Command);
 commands.set(statsCommand.data.name, statsCommand as Command);
 commands.set(skipCommand.data.name, skipCommand as Command);
+commands.set(hintCommand.data.name, hintCommand as Command);
+commands.set(helpCommand.data.name, helpCommand as Command);
+commands.set(langCommand.data.name, langCommand as Command);
 
 const client = new Client({
   intents: [
@@ -40,10 +48,30 @@ const client = new Client({
   ],
 });
 
+// Prevent unhandled errors from crashing the bot
+client.on(Events.Error, (error) => {
+  console.error("Discord client error:", error);
+});
+
+process.on("unhandledRejection", (error) => {
+  console.error("Unhandled promise rejection:", error);
+});
+
+// Filter out non-guess messages
+const NON_GUESS_PATTERN = /^(<@[!&]?\d+>|https?:\/\/|<#\d+>|<a?:\w+:\d+>)/;
+
+function isLikelyGuess(text: string): boolean {
+  if (text.length < 2 || text.length > 60) return false;
+  if (text.startsWith("/") || text.startsWith("!")) return false;
+  if (NON_GUESS_PATTERN.test(text)) return false;
+  // Must contain at least one letter
+  if (!/[a-zA-Z]/.test(text)) return false;
+  return true;
+}
+
 // Register slash commands on startup
 async function registerCommands(): Promise<void> {
   const rest = new REST().setToken(config.discordToken);
-
   const commandData = [...commands.values()].map((c) => c.data.toJSON());
 
   console.log(`Registering ${commandData.length} slash commands...`);
@@ -64,81 +92,95 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await command.execute(interaction);
   } catch (error) {
     console.error(`Error executing /${interaction.commandName}:`, error);
-    const reply = {
-      content: "Something went wrong. Try again!",
-      ephemeral: true,
-    };
-
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(reply);
-    } else {
-      await interaction.reply(reply);
+    try {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({
+          content: "Something went wrong. Try again!",
+          flags: MessageFlags.Ephemeral,
+        });
+      } else {
+        await interaction.reply({
+          content: "Something went wrong. Try again!",
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    } catch (followUpError) {
+      console.error("Failed to send error feedback:", followUpError);
     }
   }
 });
 
 // Handle guesses via regular messages
 client.on(Events.MessageCreate, async (message) => {
-  if (message.author.bot) return;
+  try {
+    if (message.author.bot) return;
 
-  const session = getSession(message.channelId);
-  if (!session) return;
+    const session = getSession(message.channelId);
+    if (!session) return;
 
-  const guess = message.content.trim();
+    const guess = message.content.trim();
+    if (!isLikelyGuess(guess)) return;
 
-  // Ignore very short or very long messages (probably not guesses)
-  if (guess.length < 2 || guess.length > 60) return;
+    const t = getLang(message.guildId);
+    const userId = message.author.id;
+    const username = message.author.username;
 
-  // Ignore messages that look like commands
-  if (guess.startsWith("/") || guess.startsWith("!")) return;
+    const triesLeft = getPlayerTriesLeft(session, userId);
+    if (triesLeft <= 0) return;
 
-  const userId = message.author.id;
-  const username = message.author.username;
+    const isCorrect = matchCountry(guess, session.answer);
 
-  // Check if player has tries left
-  const triesLeft = getPlayerTriesLeft(session, userId);
-  if (triesLeft <= 0) return; // silently ignore, they're out
+    if (isCorrect) {
+      session.winnerId = userId;
+      endSession(message.channelId);
 
-  // Check the guess
-  const isCorrect = matchCountry(guess, session.answer);
+      recordWin(userId, username);
 
-  if (isCorrect) {
-    session.winnerId = userId;
-    endSession(message.channelId);
+      // Record loss for all other participants (using stored usernames)
+      for (const [playerId, entry] of session.playerTries) {
+        if (playerId !== userId) {
+          recordLoss(playerId, entry.username);
+        }
+      }
 
-    // Record stats
-    recordWin(userId, username);
+      const embed = new EmbedBuilder()
+        .setColor(0x2ecc71)
+        .setTitle(t.guess.correct)
+        .setDescription(t.guess.correctDesc(username, session.answerFlag, session.answer))
+        .setFooter({
+          text: `📍 https://www.openstreetmap.org/#map=10/${session.lat}/${session.lng}`,
+        });
 
-    // Reset streak for all other players who participated
-    for (const [playerId] of session.playerTries) {
-      if (playerId !== userId) {
-        recordLoss(playerId, playerId);
+      await message.reply({ embeds: [embed] });
+    } else {
+      const remaining = recordTry(session, userId, username);
+
+      if (remaining > 0) {
+        await message.reply(t.guess.wrong(guess, remaining));
+      } else {
+        if (allPlayersExhausted(session)) {
+          endSession(message.channelId);
+
+          for (const [playerId, entry] of session.playerTries) {
+            recordLoss(playerId, entry.username);
+          }
+
+          const embed = new EmbedBuilder()
+            .setColor(0xff6b6b)
+            .setTitle(t.guess.outOfTries)
+            .setDescription(t.guess.answerWas(session.answerFlag, session.answer))
+            .setFooter({
+              text: `📍 https://www.openstreetmap.org/#map=10/${session.lat}/${session.lng}`,
+            });
+
+          await message.reply({ embeds: [embed] });
+        } else {
+          await message.reply(t.guess.outOfTriesOthers(guess));
+        }
       }
     }
-
-    const embed = new EmbedBuilder()
-      .setColor(0x2ecc71)
-      .setTitle("Correct! 🎉")
-      .setDescription(
-        `**${username}** guessed it! The answer was **${session.answerFlag} ${session.answer}**`
-      )
-      .setFooter({
-        text: `📍 https://www.openstreetmap.org/#map=10/${session.lat}/${session.lng}`,
-      });
-
-    await message.reply({ embeds: [embed] });
-  } else {
-    const remaining = recordTry(session, userId);
-
-    if (remaining > 0) {
-      await message.reply(
-        `❌ Not **${guess}**. You have **${remaining}** ${remaining === 1 ? "try" : "tries"} left.`
-      );
-    } else {
-      await message.reply(
-        `❌ Not **${guess}**. You're out of tries for this round!`
-      );
-    }
+  } catch (error) {
+    console.error("Error in message handler:", error);
   }
 });
 
