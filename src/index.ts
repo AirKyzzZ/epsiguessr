@@ -115,11 +115,20 @@ client.on(Events.MessageCreate, async (message) => {
   try {
     if (message.author.bot) return;
 
+    // Debug: log incoming messages to diagnose intent issues
+    console.log(`[MSG] channel=${message.channelId} content="${message.content}" len=${message.content.length}`);
+
     const session = getSession(message.channelId);
-    if (!session) return;
+    if (!session) {
+      console.log(`[MSG] No active session for channel ${message.channelId}`);
+      return;
+    }
 
     const guess = message.content.trim();
-    if (!isLikelyGuess(guess)) return;
+    if (!isLikelyGuess(guess)) {
+      console.log(`[MSG] Not a likely guess: "${guess}"`);
+      return;
+    }
 
     const t = getLang(message.guildId);
     const userId = message.author.id;
