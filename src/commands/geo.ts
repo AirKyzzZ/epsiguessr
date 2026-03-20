@@ -19,6 +19,7 @@ import {
 import { getCountryByName } from "../game/matcher";
 import { getLang } from "../i18n";
 import { recordLoss } from "../services/leaderboard";
+import { takeLocation } from "../services/location-pool";
 
 export const data = new SlashCommandBuilder()
   .setName("geo")
@@ -40,32 +41,41 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   markPending(channelId);
   await interaction.deferReply();
 
-  let image = null;
+  // Try pre-validated pool first (instant), fall back to real-time fetching
+  let image: { thumbUrl: string; lat: number; lng: number } | null = null;
   let country = "";
   let countryFlag = "";
   let countryCode = "";
 
-  try {
-    for (let attempt = 0; attempt < config.game.maxRetries; attempt++) {
-      const location = generateRandomLocation();
+  const pooled = takeLocation();
+  if (pooled) {
+    image = { thumbUrl: pooled.imageUrl, lat: pooled.lat, lng: pooled.lng };
+    country = pooled.country;
+    countryFlag = pooled.countryFlag;
+    countryCode = pooled.countryCode;
+  } else {
+    try {
+      for (let attempt = 0; attempt < config.game.maxRetries; attempt++) {
+        const location = generateRandomLocation();
 
-      const result = await fetchNearbyImage(location.lat, location.lng);
-      if (!result) continue;
+        const result = await fetchNearbyImage(location.lat, location.lng);
+        if (!result) continue;
 
-      const geocodedCountry = await reverseGeocode(result.lat, result.lng);
-      if (!geocodedCountry) continue;
+        const geocodedCountry = await reverseGeocode(result.lat, result.lng);
+        if (!geocodedCountry) continue;
 
-      const matched = getCountryByName(geocodedCountry);
-      if (!matched) continue; // skip unknown countries to avoid wrong flag/code
+        const matched = getCountryByName(geocodedCountry);
+        if (!matched) continue;
 
-      image = result;
-      country = matched.name;
-      countryFlag = matched.flag;
-      countryCode = matched.code;
-      break;
+        image = result;
+        country = matched.name;
+        countryFlag = matched.flag;
+        countryCode = matched.code;
+        break;
+      }
+    } catch (error) {
+      console.error("Error during image search:", error);
     }
-  } catch (error) {
-    console.error("Error during image search:", error);
   }
 
   if (!image) {

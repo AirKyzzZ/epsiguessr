@@ -16,6 +16,7 @@ import { getPlayerTriesLeft, recordTry, allPlayersExhausted } from "./game/sessi
 import { matchCountry } from "./game/matcher";
 import { recordWin, recordLoss } from "./services/leaderboard";
 import { getLang } from "./i18n";
+import { startPool } from "./services/location-pool";
 
 // Import commands
 import * as geoCommand from "./commands/geo";
@@ -190,6 +191,7 @@ client.once(Events.ClientReady, (readyClient) => {
 
 async function main(): Promise<void> {
   await registerCommands();
+  startPool();
   await client.login(config.discordToken);
 }
 
