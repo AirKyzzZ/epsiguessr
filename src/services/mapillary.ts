@@ -18,16 +18,34 @@ type MapillaryApiResponse = {
   }>;
 };
 
-// Progressive search radii in degrees
-// 0.1° ≈ 11km, 0.5° ≈ 55km, 1.0° ≈ 111km, 2.0° ≈ 222km
-const SEARCH_RADII = [0.1, 0.5, 1.0, 2.0];
+// Mapillary limits bbox area to strictly < 0.01 sq degrees.
+// 0.049° per side → 0.098° × 0.098° = 0.0096 sq deg (under limit).
+const MAX_RADIUS = 0.049;
+
+// Search offsets: center, then cardinal directions at increasing distances.
+// Each search covers a 0.1° × 0.1° area (~11km × 11km).
+const SEARCH_OFFSETS = [
+  { dlat: 0, dlng: 0 },        // center
+  { dlat: 0.1, dlng: 0 },      // north
+  { dlat: -0.1, dlng: 0 },     // south
+  { dlat: 0, dlng: 0.1 },      // east
+  { dlat: 0, dlng: -0.1 },     // west
+  { dlat: 0.2, dlng: 0.2 },    // NE far
+  { dlat: -0.2, dlng: -0.2 },  // SW far
+  { dlat: 0.3, dlng: 0 },      // north far
+  { dlat: 0, dlng: 0.3 },      // east far
+];
 
 export async function fetchNearbyImage(
   lat: number,
   lng: number
 ): Promise<MapillaryImage | null> {
-  for (const r of SEARCH_RADII) {
-    const result = await searchWithRadius(lat, lng, r);
+  for (const offset of SEARCH_OFFSETS) {
+    const result = await searchWithRadius(
+      lat + offset.dlat,
+      lng + offset.dlng,
+      MAX_RADIUS
+    );
     if (result) return result;
   }
   return null;
