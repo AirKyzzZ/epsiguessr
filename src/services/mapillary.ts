@@ -20,37 +20,14 @@ type MapillaryApiResponse = {
 
 // Mapillary limits bbox area to strictly < 0.01 sq degrees.
 // 0.049° per side → 0.098° × 0.098° = 0.0096 sq deg (under limit).
-const MAX_RADIUS = 0.049;
-
-// Search offsets: center, then nearby shifts to cover more area.
-// Each search covers a ~0.098° × 0.098° area (~10km × 10km).
-const SEARCH_OFFSETS = [
-  { dlat: 0, dlng: 0 },        // center
-  { dlat: 0.1, dlng: 0 },      // north
-  { dlat: 0, dlng: 0.1 },      // east
-  { dlat: -0.1, dlng: -0.1 },  // SW
-];
+// This is ~100x more area than the previous 0.005° radius.
+const SEARCH_RADIUS = 0.049;
 
 export async function fetchNearbyImage(
   lat: number,
   lng: number
 ): Promise<MapillaryImage | null> {
-  for (const offset of SEARCH_OFFSETS) {
-    const result = await searchWithRadius(
-      lat + offset.dlat,
-      lng + offset.dlng,
-      MAX_RADIUS
-    );
-    if (result) return result;
-  }
-  return null;
-}
-
-async function searchWithRadius(
-  lat: number,
-  lng: number,
-  r: number
-): Promise<MapillaryImage | null> {
+  const r = SEARCH_RADIUS;
   const bbox = `${lng - r},${lat - r},${lng + r},${lat + r}`;
 
   const url = new URL("https://graph.mapillary.com/images");
@@ -65,12 +42,12 @@ async function searchWithRadius(
       signal: AbortSignal.timeout(15000),
     });
   } catch (error) {
-    console.error(`Mapillary API request failed (radius ${r}):`, error);
+    console.error("Mapillary API request failed:", error);
     return null;
   }
 
   if (!response.ok) {
-    console.error(`Mapillary API error (radius ${r}): ${response.status} ${response.statusText}`);
+    console.error(`Mapillary API error: ${response.status} ${response.statusText}`);
     return null;
   }
 
