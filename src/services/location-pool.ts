@@ -33,7 +33,7 @@ export function takeLocation(): ValidatedLocation | null {
 async function validateOneLocation(): Promise<ValidatedLocation | null> {
   const location = generateRandomLocation();
 
-  const result = await fetchNearbyImage(location.lat, location.lng);
+  const result = await fetchNearbyImage(location.lat, location.lng, 10000);
   if (!result) return null;
 
   const geocodedCountry = await reverseGeocode(result.lat, result.lng);

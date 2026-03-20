@@ -25,7 +25,8 @@ const SEARCH_RADIUS = 0.049;
 
 export async function fetchNearbyImage(
   lat: number,
-  lng: number
+  lng: number,
+  timeoutMs = 5000
 ): Promise<MapillaryImage | null> {
   const r = SEARCH_RADIUS;
   const bbox = `${lng - r},${lat - r},${lng + r},${lat + r}`;
@@ -39,7 +40,7 @@ export async function fetchNearbyImage(
   let response: Response;
   try {
     response = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
     console.error("Mapillary API request failed:", error);
