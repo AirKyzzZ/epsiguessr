@@ -1,3 +1,5 @@
+import type { LangKey } from "../i18n";
+
 // Map country codes to continents
 const continentMap: Record<string, string> = {
   // Africa
@@ -42,6 +44,18 @@ const continentMap: Record<string, string> = {
   AU: "Oceania", NZ: "Oceania", PG: "Oceania",
 };
 
-export function getContinent(countryCode: string): string {
-  return continentMap[countryCode] ?? "Unknown";
+const continentFr: Record<string, string> = {
+  "Africa": "Afrique",
+  "Asia": "Asie",
+  "Europe": "Europe",
+  "North America": "Amérique du Nord",
+  "South America": "Amérique du Sud",
+  "Oceania": "Océanie",
+  "Unknown": "Inconnu",
+};
+
+export function getContinent(countryCode: string, lang: LangKey = "en"): string {
+  const en = continentMap[countryCode] ?? "Unknown";
+  if (lang === "fr") return continentFr[en] ?? en;
+  return en;
 }

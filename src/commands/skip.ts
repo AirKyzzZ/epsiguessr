@@ -36,7 +36,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const embed = new EmbedBuilder()
     .setColor(0xff6b6b)
     .setTitle(t.skip.skipped)
-    .setDescription(t.skip.answerWas(ended.answerFlag, ended.answer))
+    .setDescription(t.skip.answerWas(ended.answerFlag, ended.displayAnswer))
     .setFooter({
       text: `📍 https://www.openstreetmap.org/#map=10/${ended.lat}/${ended.lng}`,
     });

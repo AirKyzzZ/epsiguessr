@@ -7,6 +7,7 @@ export type PlayerEntry = {
 
 export type GameSession = {
   answer: string;
+  displayAnswer: string;
   answerFlag: string;
   answerCode: string;
   imageUrl: string;
@@ -22,6 +23,7 @@ export type GameSession = {
 
 export function createSession(
   answer: string,
+  displayAnswer: string,
   answerFlag: string,
   answerCode: string,
   imageUrl: string,
@@ -31,6 +33,7 @@ export function createSession(
 ): GameSession {
   return {
     answer,
+    displayAnswer,
     answerFlag,
     answerCode,
     imageUrl,

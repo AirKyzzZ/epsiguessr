@@ -5,7 +5,7 @@ import {
 } from "discord.js";
 import { getSession } from "../game/manager";
 import { getContinent } from "../data/continents";
-import { getLang } from "../i18n";
+import { getLang, getLangKey } from "../i18n";
 
 export const data = new SlashCommandBuilder()
   .setName("hint")
@@ -26,13 +26,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   session.hintsUsed++;
 
   if (session.hintsUsed === 1) {
-    const continent = getContinent(session.answerCode);
+    const langKey = getLangKey(interaction.guildId);
+    const continent = getContinent(session.answerCode, langKey);
     await interaction.reply(t.hint.continent(continent));
   } else if (session.hintsUsed === 2) {
-    const firstLetter = session.answer.charAt(0).toUpperCase();
+    const firstLetter = session.displayAnswer.charAt(0).toUpperCase();
     await interaction.reply(t.hint.firstLetter(firstLetter));
   } else if (session.hintsUsed === 3) {
-    const length = session.answer.length;
+    const length = session.displayAnswer.length;
     await interaction.reply(t.hint.letterCount(length));
   } else {
     await interaction.reply({

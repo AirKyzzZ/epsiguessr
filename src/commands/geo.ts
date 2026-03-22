@@ -17,7 +17,7 @@ import {
   clearPending,
 } from "../game/manager";
 import { getCountryByName } from "../game/matcher";
-import { getLang } from "../i18n";
+import { getLang, getLangKey } from "../i18n";
 import { recordLoss } from "../services/leaderboard";
 import { takeLocation } from "../services/location-pool";
 
@@ -83,8 +83,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
+  const langKey = getLangKey(interaction.guildId);
+  const countryObj = getCountryByName(country);
+  const displayAnswer = langKey === "fr" && countryObj ? countryObj.frenchName : country;
+
   const session = createSession(
     country,
+    displayAnswer,
     countryFlag,
     countryCode,
     image.thumbUrl,
@@ -112,7 +117,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       const timeoutEmbed = new EmbedBuilder()
         .setColor(0xff6b6b)
         .setTitle(t.geo.timesUp)
-        .setDescription(t.geo.timesUpDesc(ended.answerFlag, ended.answer))
+        .setDescription(t.geo.timesUpDesc(ended.answerFlag, ended.displayAnswer))
         .setFooter({
           text: `📍 https://www.openstreetmap.org/#map=10/${ended.lat}/${ended.lng}`,
         });

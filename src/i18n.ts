@@ -6,9 +6,12 @@ export function setGuildLang(guildId: string, lang: LangKey): void {
   setGuildLangDb(guildId, lang);
 }
 
+export function getLangKey(guildId: string | null): LangKey {
+  return guildId ? (getGuildLang(guildId) as LangKey | undefined) ?? "en" : "en";
+}
+
 export function getLang(guildId: string | null): typeof en {
-  const lang = guildId ? (getGuildLang(guildId) as LangKey | undefined) ?? "en" : "en";
-  return lang === "fr" ? fr : en;
+  return getLangKey(guildId) === "fr" ? fr : en;
 }
 
 const en = {

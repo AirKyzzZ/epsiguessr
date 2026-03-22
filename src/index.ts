@@ -13,7 +13,7 @@ import {
 import { config } from "./config";
 import { getSession, endSession } from "./game/manager";
 import { getPlayerTriesLeft, recordTry, allPlayersExhausted } from "./game/session";
-import { matchCountry } from "./game/matcher";
+import { matchCountry, couldBeCountryGuess } from "./game/matcher";
 import { recordWin, recordLoss } from "./services/leaderboard";
 import { getLang } from "./i18n";
 import { startPool } from "./services/location-pool";
@@ -121,6 +121,7 @@ client.on(Events.MessageCreate, async (message) => {
 
     const guess = message.content.trim();
     if (!isLikelyGuess(guess)) return;
+    if (!couldBeCountryGuess(guess)) return;
 
     const t = getLang(message.guildId);
     const userId = message.author.id;
@@ -147,7 +148,7 @@ client.on(Events.MessageCreate, async (message) => {
       const embed = new EmbedBuilder()
         .setColor(0x2ecc71)
         .setTitle(t.guess.correct)
-        .setDescription(t.guess.correctDesc(username, session.answerFlag, session.answer))
+        .setDescription(t.guess.correctDesc(username, session.answerFlag, session.displayAnswer))
         .setFooter({
           text: `📍 https://www.openstreetmap.org/#map=10/${session.lat}/${session.lng}`,
         });
@@ -169,7 +170,7 @@ client.on(Events.MessageCreate, async (message) => {
           const embed = new EmbedBuilder()
             .setColor(0xff6b6b)
             .setTitle(t.guess.outOfTries)
-            .setDescription(t.guess.answerWas(session.answerFlag, session.answer))
+            .setDescription(t.guess.answerWas(session.answerFlag, session.displayAnswer))
             .setFooter({
               text: `📍 https://www.openstreetmap.org/#map=10/${session.lat}/${session.lng}`,
             });
